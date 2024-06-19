@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MTG Scout</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <h1>MTG Tournament Scout</h1>
+    <div>
+        <h2>Add Player</h2>
+        <form id="addPlayerForm">
+            <label for="playerName">Player Name:</label>
+            <input type="text" id="playerName" name="playerName" required>
+            <label for="deck">Deck:</label>
+            <input type="text" id="deck" name="deck" required>
+            <button type="submit">Add Player</button>
+            <button type="button" id="clearPlayerForm">Clear Player Form</button>
+        </form>
+    </div>
+    <div>
+        <h2>Add Table</h2>
+        <form id="addTableForm">
+            <div id="tablesContainer">
+                <!-- Table inputs will be dynamically added here -->
+            </div>
+            <button type="button" id="addTableButton">Add Table</button>
+            <button type="submit">Submit Tables</button>
+            <button type="button" id="clearTableForm">Clear Table Form</button>
+        </form>
+    </div>
+    <div>
+        <h2>Deck Deductions</h2>
+        <button id="deduceDecks">Deduce Decks</button>
+        <pre id="deductionResults"></pre>
+    </div>
+    <div>
+        <button id="resetDataButton">Reset Data</button>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            let tableCount = 0;
+
+            function addTable() {
+                tableCount++;
+                $('#tablesContainer').append(`
+                    <div class="table" data-table-number="${tableCount}">
+                        <h3>Table ${tableCount}</h3>
+                        <label for="player1-${tableCount}">Player 1:</label>
+                        <input type="text" id="player1-${tableCount}" name="player1-${tableCount}" required>
+                        <label for="player2-${tableCount}">Player 2:</label>
+                        <input type="text" id="player2-${tableCount}" name="player2-${tableCount}" required>
+                        <label for="deck1-${tableCount}">Deck 1:</label>
+                        <input type="text" id="deck1-${tableCount}" name="deck1-${tableCount}" required>
+                        <label for="deck2-${tableCount}">Deck 2:</label>
+                        <input type="text" id="deck2-${tableCount}" name="deck2-${tableCount}" required>
+                        <button type="button" class="removeTableButton">Remove Table</button>
+                    </div>
+                `);
+            }
+
+            $('#addTableButton').on('click', function() {
+                addTable();
+            });
+
+            $('#addPlayerForm').on('submit', function(e) {
+                e.preventDefault();
+                $.ajax({
+                    url: '/add_player',
+                    type: 'POST',
+                    data: $(this).serialize(),
+                    success: function(response) {
+                        alert('Player added successfully!');
+                        $('#addPlayerForm')[0].reset();
+                    },
+                    error: function(error) {
+                        alert('Error adding player.');
+                    }
+                });
+            });
+
+            $('#addTableForm').on('submit', function(e) {
+                e.preventDefault();
+                let tableData = [];
+
+                $('.table').each(function() {
+                    let tableNumber = $(this).data('table-number');
+                    let player1 = $(`#player1-${tableNumber}`).val();
+                    let player2 = $(`#player2-${tableNumber}`).val();
+                    let deck1 = $(`#deck1-${tableNumber}`).val();
+                    let deck2 = $(`#deck2-${tableNumber}`).val();
+
+                    tableData.push({
+                        'player1': player1,
+                        'player2': player2,
+                        'deck1': deck1,
+                        'deck2': deck2
+                    });
+                });
+
+                $.ajax({
+                    url: '/add_table',
+                    type: 'POST',
+                    data: {
+                        tableData: JSON.stringify(tableData)
+                    },
+                    success: function(response) {
+                        alert('Tables added successfully!');
+                        $('#addTableForm')[0].reset();
+                        $('#tablesContainer').empty();
+                        tableCount = 0;
+                    },
+                    error: function(error) {
+                        alert('Error adding tables.');
+                    }
+                });
+            });
+
+            $('#deduceDecks').on('click', function() {
+                $.ajax({
+                    url: '/deduce_decks',
+                    type: 'POST',
+                    success: function(response) {
+                        $('#deductionResults').text(JSON.stringify(response, null, 2));
+                    },
+                    error: function(error) {
+                        alert('Error deducing decks.');
+                    }
+                });
+            });
+
+            $('#resetDataButton').on('click', function() {
+                if (confirm('Are you sure you want to reset all data? This action cannot be undone.')) {
+                    $.ajax({
+                        url: '/reset_data',
+                        type: 'POST',
+                        success: function(response) {
+                            alert('All data has been reset.');
+                            location.reload();
+                        },
+                        error: function(error) {
+                            alert('Error resetting data.');
+                        }
+                    });
+                }
+            });
+
+            $('#clearPlayerForm').on('click', function() {
+                $('#addPlayerForm')[0].reset();
+            });
+
+            $('#clearTableForm').on('click', function() {
+                $('#addTableForm')[0].reset();
+                $('#tablesContainer').empty();
+                tableCount = 0;
+            });
+
+            $(document).on('click', '.removeTableButton', function() {
+                $(this).closest('.table').remove();
+            });
+        });
+    </script>
+</body>
+</html>
