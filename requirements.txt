@@ -1,4 +1,5 @@
 Flask==3.0.3
+boto3==1.18.69
 
 # Required for deployment on Heroku
 gunicorn==20.1.0
