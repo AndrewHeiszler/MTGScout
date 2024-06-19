@@ -1,6 +1,6 @@
 Flask==3.0.3
 boto3==1.34.130
-dotenv==16.4.5
+dotenv==0.0.5
 
 # Required for deployment on Heroku
 gunicorn==20.1.0
