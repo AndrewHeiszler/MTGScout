@@ -87,8 +87,11 @@ def deduce_decks():
         max_seen_decks = [deck for deck, count in decks.items() if count == max_count]
         if player not in known_decks and len(max_seen_decks) == 1:
             known_decks[player] = max_seen_decks[0]
-        deduced_decks[player] = max_seen_decks
-    
+            if player in deduced_decks:
+                del deduced_decks[player]
+        else:
+            deduced_decks[player] = max_seen_decks
+
     to_delete = []
     for player in deduced_decks:
         if player in known_decks:
@@ -96,6 +99,7 @@ def deduce_decks():
     while(len(to_delete) > 0):
         temp = to_delete.pop()
         del deduced_decks[temp]
+
 
     tournament_data['deductions'] = dict(sorted(deduced_decks.items()))
     tournament_data['players'] = dict(sorted(known_decks.items()))
