@@ -1,24 +1,47 @@
 from flask import Flask, render_template, request, jsonify
 import json
 import os
+import boto3
+from botocore.exceptions import NoCredentialsError, ClientError
+from dotenv import load_dotenv
+
+load_dotenv() 
 
 app = Flask(__name__)
+
+# Load environment variables
+AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
+AWS_S3_BUCKET_NAME = os.getenv('AWS_S3_BUCKET_NAME')
+AWS_S3_REGION = os.getenv('AWS_S3_REGION')
+
+s3_client = boto3.client(
+    's3',
+    region_name=AWS_S3_REGION,
+    aws_access_key_id=AWS_ACCESS_KEY_ID,
+    aws_secret_access_key=AWS_SECRET_ACCESS_KEY
+)
 
 DATA_FILE = 'data/tournament_data.json'
 
 # Load or initialize tournament data
 def load_data():
-    if os.path.exists(DATA_FILE):
-        with open(DATA_FILE, 'r') as f:
-            return json.load(f)
-    else:
+    try:
+        s3_response = s3_client.get_object(Bucket=AWS_S3_BUCKET_NAME, Key=DATA_FILE)
+        data = s3_response['Body'].read().decode('utf-8')
+        return json.loads(data)
+    except s3_client.exceptions.NoSuchKey:
         return {'players': {}, 'tables': [], 'deductions': {}}
-
+    except (NoCredentialsError, ClientError) as e:
+        print(f"Error loading data: {e}")
+        return {'players': {}, 'tables': [], 'deductions': {}}
 tournament_data = load_data()
 
 def save_data():
-    with open(DATA_FILE, 'w') as f:
-        json.dump(tournament_data, f)
+    try:
+        s3_client.put_object(Bucket=AWS_S3_BUCKET_NAME, Key=DATA_FILE, Body=json.dumps(tournament_data))
+    except (NoCredentialsError, ClientError) as e:
+        print(f"Error saving data: {e}")
 
 @app.route('/')
 def index():
