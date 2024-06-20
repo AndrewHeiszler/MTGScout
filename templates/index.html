@@ -26,7 +26,6 @@
             padding: 20px;
             border: 1px solid #888;
             width: 80%;
-            text-align: center;
         }
 
         .spinner {
@@ -44,6 +43,7 @@
             100% { transform: rotate(360deg); }
         }
     </style>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
 </head>
 <body>
     <h1>MTG Tournament Scout</h1>
@@ -72,13 +72,26 @@
     <div>
         <h2>Deck Deductions</h2>
         <button id="deduceDecks">Deduce Decks</button>
-        <pre id="deductionResults"></pre>
+        <table id="deductionsTable" class="display">
+            <thead>
+                <tr>
+                    <th>Player</th>
+                    <th>Possible Decks</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Deductions will be dynamically added here -->
+            </tbody>
+        </table>
     </div>
     <div>
         <button id="resetDataButton">Reset Data</button>
     </div>
+    <div>
+        <button id="editTablesButton">Edit Tables</button>
+    </div>
 
-    <!-- Modal -->
+    <!-- Loading Modal -->
     <div id="loadingModal" class="modal">
         <div class="modal-content">
             <div class="spinner"></div>
@@ -86,7 +99,20 @@
         </div>
     </div>
 
+    <!-- Edit Tables Modal -->
+    <div id="editTablesModal" class="modal">
+        <div class="modal-content">
+            <h2>Edit Tables</h2>
+            <div id="existingTablesContainer">
+                <!-- Existing tables will be dynamically added here -->
+            </div>
+            <button type="button" id="saveEditedTables">Save Changes</button>
+            <button type="button" id="closeEditTablesModal">Close</button>
+        </div>
+    </div>
+
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
     <script>
         $(document).ready(function() {
             let tableCount = 0;
@@ -115,6 +141,14 @@
 
             function hideLoadingModal() {
                 $('#loadingModal').hide();
+            }
+
+            function showEditTablesModal() {
+                $('#editTablesModal').show();
+            }
+
+            function hideEditTablesModal() {
+                $('#editTablesModal').hide();
             }
 
             $('#addTableButton').on('click', function() {
@@ -193,7 +227,29 @@
                     url: '/deduce_decks',
                     type: 'POST',
                     success: function(response) {
-                        $('#deductionResults').text(JSON.stringify(response, null, 2));
+                        let tableBody = $('#deductionsTable tbody');
+                        $('#deductionsTable').DataTable().clear().destroy();
+                        $('#deductionsTable').DataTable();
+                        let dt = $('#deductionsTable').DataTable();
+                        //tableBody.empty();
+                        // Display known decks
+                        $.each(response['Known Decks'], function(player, deck) {
+                            let newRow = `<tr><td>${player}</td><td>${deck}</td></tr>`;
+                            dt.rows.add($(newRow)).draw()
+                        });
+
+                        // Display deduced decks
+                        $.each(response['Deduced Decks'], function(player, decks) {
+                            let deckList = decks.join(', ');
+                            let newRow = `
+                                <tr>
+                                    <td>${player}</td>
+                                    <td>${deckList}</td>
+                                </tr>
+                            `;
+                            dt.rows.add($(newRow)).draw()
+                        });
+                        
                         hideLoadingModal();
                     },
                     error: function(error) {
@@ -204,14 +260,15 @@
             });
 
             $('#resetDataButton').on('click', function() {
-                if (confirm('Are you sure you want to reset all data? This action cannot be undone.')) {
+                if (confirm('Are you sure you want to reset all data?')) {
                     showLoadingModal();
                     $.ajax({
                         url: '/reset_data',
                         type: 'POST',
                         success: function(response) {
-                            alert('All data has been reset.');
-                            location.reload();
+                            alert('Data reset successfully!');
+                            $('#deductionsTable').DataTable().clear().destroy();
+                            $('#deductionsTable').DataTable();
                             hideLoadingModal();
                         },
                         error: function(error) {
@@ -220,6 +277,80 @@
                         }
                     });
                 }
+            });
+
+            $('#editTablesButton').on('click', function() {
+                showLoadingModal();
+                $.ajax({
+                    url: '/edit_tables',
+                    type: 'GET',
+                    success: function(response) {
+                        let container = $('#existingTablesContainer');
+                        container.empty();
+                        $.each(response.tables, function(index, table) {
+                            container.append(`
+                                <div class="table" data-table-index="${index}">
+                                    <h3>Table ${index + 1}</h3>
+                                    <label for="editPlayer1-${index}">Player 1:</label>
+                                    <input type="text" id="editPlayer1-${index}" name="editPlayer1-${index}" value="${table.player1}" required>
+                                    <label for="editPlayer2-${index}">Player 2:</label>
+                                    <input type="text" id="editPlayer2-${index}" name="editPlayer2-${index}" value="${table.player2}" required>
+                                    <label for="editDeck1-${index}">Deck 1:</label>
+                                    <input type="text" id="editDeck1-${index}" name="editDeck1-${index}" value="${table.deck1}" required>
+                                    <label for="editDeck2-${index}">Deck 2:</label>
+                                    <input type="text" id="editDeck2-${index}" name="editDeck2-${index}" value="${table.deck2}" required>
+                                </div>
+                            `);
+                        });
+                        hideLoadingModal();
+                        showEditTablesModal();
+                    },
+                    error: function(error) {
+                        alert('Error loading tables.');
+                        hideLoadingModal();
+                    }
+                });
+            });
+
+            $('#saveEditedTables').on('click', function() {
+                let tableData = [];
+
+                $('#existingTablesContainer .table').each(function() {
+                    let tableIndex = $(this).data('table-index');
+                    let player1 = $(`#editPlayer1-${tableIndex}`).val().trim().toLowerCase();
+                    let player2 = $(`#editPlayer2-${tableIndex}`).val().trim().toLowerCase();
+                    let deck1 = $(`#editDeck1-${tableIndex}`).val().trim().toLowerCase();
+                    let deck2 = $(`#editDeck2-${tableIndex}`).val().trim().toLowerCase();
+
+                    tableData.push({
+                        'player1': player1,
+                        'player2': player2,
+                        'deck1': deck1,
+                        'deck2': deck2
+                    });
+                });
+
+                showLoadingModal();
+                $.ajax({
+                    url: '/update_tables',
+                    type: 'POST',
+                    data: {
+                        tableData: JSON.stringify(tableData)
+                    },
+                    success: function(response) {
+                        alert('Tables updated successfully!');
+                        hideLoadingModal();
+                        hideEditTablesModal();
+                    },
+                    error: function(error) {
+                        alert('Error updating tables.');
+                        hideLoadingModal();
+                    }
+                });
+            });
+
+            $('#closeEditTablesModal').on('click', function() {
+                hideEditTablesModal();
             });
 
             $('#clearPlayerForm').on('click', function() {
@@ -232,6 +363,7 @@
                 tableCount = 0;
             });
 
+            // Remove table
             $(document).on('click', '.removeTableButton', function() {
                 $(this).closest('.table').remove();
             });
