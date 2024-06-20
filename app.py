@@ -114,11 +114,10 @@ def deduce_decks():
         max_seen_decks = [deck for deck, count in decks.items() if count == max_count]
         if player not in known_decks and len(max_seen_decks) == 1:
             known_decks[player] = max_seen_decks[0]
-            if player in deduced_decks:
-                del deduced_decks[player]
+            #if player in deduced_decks:
+            #    del deduced_decks[player]
         else:
             deduced_decks[player] = max_seen_decks
-
     to_delete = []
     for player in deduced_decks:
         if player in known_decks:
@@ -126,7 +125,6 @@ def deduce_decks():
     while(len(to_delete) > 0):
         temp = to_delete.pop()
         del deduced_decks[temp]
-
     
     tournament_data['deductions'] = dict(sorted(deduced_decks.items()))
     tournament_data['players'] = dict(sorted(known_decks.items()))
@@ -141,9 +139,6 @@ def reset_data():
     save_data(tournament_data)
     return jsonify({'status': 'success'})
 
-if __name__ == '__main__':
-    app.run(debug=True)
-
 @app.route('/edit_tables', methods=['GET'])
 def edit_tables():
     return jsonify({'tables': tournament_data['tables']})
@@ -152,5 +147,10 @@ def edit_tables():
 def update_tables():
     table_data = json.loads(request.form['tableData'])
     tournament_data['tables'] = table_data
-    save_data()
+    save_data(tournament_data)
     return jsonify({'status': 'success'})
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
+

@@ -103,9 +103,21 @@
     <div id="editTablesModal" class="modal">
         <div class="modal-content">
             <h2>Edit Tables</h2>
-            <div id="existingTablesContainer">
-                <!-- Existing tables will be dynamically added here -->
-            </div>
+            <table id="existingTablesTable" class="display">
+                <thead>
+                    <tr>
+                        <th>Table</th>
+                        <th>Player 1</th>
+                        <th>Player 2</th>
+                        <th>Deck 1</th>
+                        <th>Deck 2</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Existing tables will be dynamically added here -->
+                </tbody>
+            </table>
             <button type="button" id="saveEditedTables">Save Changes</button>
             <button type="button" id="closeEditTablesModal">Close</button>
         </div>
@@ -227,7 +239,6 @@
                     url: '/deduce_decks',
                     type: 'POST',
                     success: function(response) {
-                        let tableBody = $('#deductionsTable tbody');
                         $('#deductionsTable').DataTable().clear().destroy();
                         $('#deductionsTable').DataTable();
                         let dt = $('#deductionsTable').DataTable();
@@ -249,10 +260,12 @@
                             `;
                             dt.rows.add($(newRow)).draw()
                         });
+
                         
                         hideLoadingModal();
                     },
                     error: function(error) {
+                        console.log(error);  // Add this line to log any errors
                         alert('Error deducing decks.');
                         hideLoadingModal();
                     }
@@ -267,8 +280,6 @@
                         type: 'POST',
                         success: function(response) {
                             alert('Data reset successfully!');
-                            $('#deductionsTable').DataTable().clear().destroy();
-                            $('#deductionsTable').DataTable();
                             hideLoadingModal();
                         },
                         error: function(error) {
@@ -285,23 +296,24 @@
                     url: '/edit_tables',
                     type: 'GET',
                     success: function(response) {
-                        let container = $('#existingTablesContainer');
-                        container.empty();
+                        $('#existingTablesTable').DataTable().clear().destroy();
+                        $('#existingTablesTable').DataTable();
+                        let dt = $('#existingTablesTable').DataTable();
+
                         $.each(response.tables, function(index, table) {
-                            container.append(`
-                                <div class="table" data-table-index="${index}">
-                                    <h3>Table ${index + 1}</h3>
-                                    <label for="editPlayer1-${index}">Player 1:</label>
-                                    <input type="text" id="editPlayer1-${index}" name="editPlayer1-${index}" value="${table.player1}" required>
-                                    <label for="editPlayer2-${index}">Player 2:</label>
-                                    <input type="text" id="editPlayer2-${index}" name="editPlayer2-${index}" value="${table.player2}" required>
-                                    <label for="editDeck1-${index}">Deck 1:</label>
-                                    <input type="text" id="editDeck1-${index}" name="editDeck1-${index}" value="${table.deck1}" required>
-                                    <label for="editDeck2-${index}">Deck 2:</label>
-                                    <input type="text" id="editDeck2-${index}" name="editDeck2-${index}" value="${table.deck2}" required>
-                                </div>
-                            `);
+                            let newRow = `
+                                <tr>
+                                    <td>${index + 1}</td>
+                                    <td><input type="text" value="${table.player1}" data-table-index="${index}" data-field="player1"></td>
+                                    <td><input type="text" value="${table.player2}" data-table-index="${index}" data-field="player2"></td>
+                                    <td><input type="text" value="${table.deck1}" data-table-index="${index}" data-field="deck1"></td>
+                                    <td><input type="text" value="${table.deck2}" data-table-index="${index}" data-field="deck2"></td>
+                                    <td><button type="button" class="removeRowButton" data-table-index="${index}">Remove</button></td>
+                                </tr>
+                            `
+                            dt.rows.add($(newRow)).draw()
                         });
+
                         hideLoadingModal();
                         showEditTablesModal();
                     },
@@ -315,12 +327,12 @@
             $('#saveEditedTables').on('click', function() {
                 let tableData = [];
 
-                $('#existingTablesContainer .table').each(function() {
-                    let tableIndex = $(this).data('table-index');
-                    let player1 = $(`#editPlayer1-${tableIndex}`).val().trim().toLowerCase();
-                    let player2 = $(`#editPlayer2-${tableIndex}`).val().trim().toLowerCase();
-                    let deck1 = $(`#editDeck1-${tableIndex}`).val().trim().toLowerCase();
-                    let deck2 = $(`#editDeck2-${tableIndex}`).val().trim().toLowerCase();
+                $('#existingTablesTable tbody tr').each(function() {
+                    let tableIndex = $(this).find('input').data('table-index');
+                    let player1 = $(this).find('input[data-field="player1"]').val().trim().toLowerCase();
+                    let player2 = $(this).find('input[data-field="player2"]').val().trim().toLowerCase();
+                    let deck1 = $(this).find('input[data-field="deck1"]').val().trim().toLowerCase();
+                    let deck2 = $(this).find('input[data-field="deck2"]').val().trim().toLowerCase();
 
                     tableData.push({
                         'player1': player1,
@@ -339,8 +351,8 @@
                     },
                     success: function(response) {
                         alert('Tables updated successfully!');
-                        hideLoadingModal();
                         hideEditTablesModal();
+                        hideLoadingModal();
                     },
                     error: function(error) {
                         alert('Error updating tables.');
@@ -353,6 +365,11 @@
                 hideEditTablesModal();
             });
 
+            $(document).on('click', '.removeRowButton', function() {
+                let tableIndex = $(this).data('table-index');
+                $(this).closest('tr').remove();
+            });
+
             $('#clearPlayerForm').on('click', function() {
                 $('#addPlayerForm')[0].reset();
             });
@@ -361,11 +378,6 @@
                 $('#addTableForm')[0].reset();
                 $('#tablesContainer').empty();
                 tableCount = 0;
-            });
-
-            // Remove table
-            $(document).on('click', '.removeTableButton', function() {
-                $(this).closest('.table').remove();
             });
         });
     </script>
