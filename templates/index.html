@@ -2,8 +2,48 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>MTG Scout</title>
+    <title>MTG Tournament Scout</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgb(0,0,0);
+            background-color: rgba(0,0,0,0.4);
+            padding-top: 60px;
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            text-align: center;
+        }
+
+        .spinner {
+            border: 16px solid #f3f3f3;
+            border-top: 16px solid #3498db;
+            border-radius: 50%;
+            width: 120px;
+            height: 120px;
+            animation: spin 2s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
 </head>
 <body>
     <h1>MTG Tournament Scout</h1>
@@ -38,6 +78,14 @@
         <button id="resetDataButton">Reset Data</button>
     </div>
 
+    <!-- Modal -->
+    <div id="loadingModal" class="modal">
+        <div class="modal-content">
+            <div class="spinner"></div>
+            <p>Loading...</p>
+        </div>
+    </div>
+
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
         $(document).ready(function() {
@@ -61,22 +109,40 @@
                 `);
             }
 
+            function showLoadingModal() {
+                $('#loadingModal').show();
+            }
+
+            function hideLoadingModal() {
+                $('#loadingModal').hide();
+            }
+
             $('#addTableButton').on('click', function() {
                 addTable();
             });
 
             $('#addPlayerForm').on('submit', function(e) {
                 e.preventDefault();
+                let formData = $(this).serializeArray();
+                formData = formData.map(item => {
+                    return {
+                        name: item.name,
+                        value: item.value.trim().toLowerCase()
+                    };
+                });
+                showLoadingModal();
                 $.ajax({
                     url: '/add_player',
                     type: 'POST',
-                    data: $(this).serialize(),
+                    data: $.param(formData),
                     success: function(response) {
                         alert('Player added successfully!');
                         $('#addPlayerForm')[0].reset();
+                        hideLoadingModal();
                     },
                     error: function(error) {
                         alert('Error adding player.');
+                        hideLoadingModal();
                     }
                 });
             });
@@ -87,10 +153,10 @@
 
                 $('.table').each(function() {
                     let tableNumber = $(this).data('table-number');
-                    let player1 = $(`#player1-${tableNumber}`).val();
-                    let player2 = $(`#player2-${tableNumber}`).val();
-                    let deck1 = $(`#deck1-${tableNumber}`).val();
-                    let deck2 = $(`#deck2-${tableNumber}`).val();
+                    let player1 = $(`#player1-${tableNumber}`).val().trim().toLowerCase();
+                    let player2 = $(`#player2-${tableNumber}`).val().trim().toLowerCase();
+                    let deck1 = $(`#deck1-${tableNumber}`).val().trim().toLowerCase();
+                    let deck2 = $(`#deck2-${tableNumber}`).val().trim().toLowerCase();
 
                     tableData.push({
                         'player1': player1,
@@ -100,6 +166,7 @@
                     });
                 });
 
+                showLoadingModal();
                 $.ajax({
                     url: '/add_table',
                     type: 'POST',
@@ -111,37 +178,45 @@
                         $('#addTableForm')[0].reset();
                         $('#tablesContainer').empty();
                         tableCount = 0;
+                        hideLoadingModal();
                     },
                     error: function(error) {
                         alert('Error adding tables.');
+                        hideLoadingModal();
                     }
                 });
             });
 
             $('#deduceDecks').on('click', function() {
+                showLoadingModal();
                 $.ajax({
                     url: '/deduce_decks',
                     type: 'POST',
                     success: function(response) {
                         $('#deductionResults').text(JSON.stringify(response, null, 2));
+                        hideLoadingModal();
                     },
                     error: function(error) {
                         alert('Error deducing decks.');
+                        hideLoadingModal();
                     }
                 });
             });
 
             $('#resetDataButton').on('click', function() {
                 if (confirm('Are you sure you want to reset all data? This action cannot be undone.')) {
+                    showLoadingModal();
                     $.ajax({
                         url: '/reset_data',
                         type: 'POST',
                         success: function(response) {
                             alert('All data has been reset.');
                             location.reload();
+                            hideLoadingModal();
                         },
                         error: function(error) {
                             alert('Error resetting data.');
+                            hideLoadingModal();
                         }
                     });
                 }
