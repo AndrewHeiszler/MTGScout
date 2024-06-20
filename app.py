@@ -38,9 +38,9 @@ def load_data():
     
 tournament_data = load_data()
 
-def save_data():
+def save_data(data_to_save):
     try:
-        s3_client.put_object(Bucket=AWS_S3_BUCKET_NAME, Key=DATA_FILE, Body=json.dumps(tournament_data))
+        s3_client.put_object(Bucket=AWS_S3_BUCKET_NAME, Key=DATA_FILE, Body=json.dumps(data_to_save))
     except (NoCredentialsError, ClientError) as e:
         print(f"Error saving data: {e}")
 
@@ -50,14 +50,16 @@ def index():
 
 @app.route('/add_player', methods=['POST'])
 def add_player():
+    load_data()
     player_name = request.form['playerName'].strip().lower()
     deck = request.form['deck'].strip().lower()
     tournament_data['players'][player_name] = deck
-    save_data()
+    save_data(tournament_data)
     return jsonify({'status': 'success'})
 
 @app.route('/add_table', methods=['POST'])
 def add_table():
+    load_data()
     table_data = json.loads(request.form['tableData'])
     for table in table_data:
         table['player1'] = table['player1'].strip().lower()
@@ -65,7 +67,7 @@ def add_table():
         table['deck1'] = table['deck1'].strip().lower()
         table['deck2'] = table['deck2'].strip().lower()
     tournament_data['tables'].extend(table_data)  # Append new tables to the list
-    save_data()
+    save_data(tournament_data)
     return jsonify({'status': 'success'})
 
 @app.route('/deduce_decks', methods=['POST'])
@@ -125,18 +127,18 @@ def deduce_decks():
         temp = to_delete.pop()
         del deduced_decks[temp]
 
-
+    
     tournament_data['deductions'] = dict(sorted(deduced_decks.items()))
     tournament_data['players'] = dict(sorted(known_decks.items()))
     output_data = {'Known Decks': known_decks, 'Deduced Decks': deduced_decks}
-    save_data()
+    save_data(tournament_data)
     return jsonify(output_data)
 
 @app.route('/reset_data', methods=['POST'])
 def reset_data():
     global tournament_data
     tournament_data = {'players': {}, 'tables': [], 'deductions': {}}
-    save_data()
+    save_data(tournament_data)
     return jsonify({'status': 'success'})
 
 if __name__ == '__main__':
