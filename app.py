@@ -14,6 +14,8 @@ AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
 AWS_S3_BUCKET_NAME = os.getenv('AWS_S3_BUCKET_NAME')
 AWS_S3_REGION = os.getenv('AWS_S3_REGION')
+DATA_FILE = 'data/tournament_data.json'
+
 
 s3_client = boto3.client(
     's3',
@@ -21,8 +23,6 @@ s3_client = boto3.client(
     aws_access_key_id=AWS_ACCESS_KEY_ID,
     aws_secret_access_key=AWS_SECRET_ACCESS_KEY
 )
-
-DATA_FILE = 'data/tournament_data.json'
 
 # Load or initialize tournament data
 def load_data():
@@ -35,6 +35,7 @@ def load_data():
     except (NoCredentialsError, ClientError) as e:
         print(f"Error loading data: {e}")
         return {'players': {}, 'tables': [], 'deductions': {}}
+    
 tournament_data = load_data()
 
 def save_data():
@@ -69,6 +70,7 @@ def add_table():
 
 @app.route('/deduce_decks', methods=['POST'])
 def deduce_decks():
+    tournament_data = load_data()
     known_decks = tournament_data['players']
     tables = tournament_data['tables']
 
