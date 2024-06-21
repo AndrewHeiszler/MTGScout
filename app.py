@@ -141,10 +141,12 @@ def reset_data():
 
 @app.route('/edit_tables', methods=['GET'])
 def edit_tables():
+    tournament_data = load_data()
     return jsonify({'tables': tournament_data['tables']})
 
 @app.route('/update_tables', methods=['POST'])
 def update_tables():
+    tournament_data = load_data()
     table_data = json.loads(request.form['tableData'])
     tournament_data['tables'] = table_data
     save_data(tournament_data)
