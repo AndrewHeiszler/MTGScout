@@ -301,19 +301,22 @@
                         let dt = $('#existingTablesTable').DataTable();
 
                         $.each(response.tables, function(index, table) {
-                            let newRow = `
-                                <tr>
+                            let newRow =`
+                                <tr data-table-index="${index}">
                                     <td>${index + 1}</td>
-                                    <td><input type="text" value="${table.player1}" data-table-index="${index}" data-field="player1"></td>
-                                    <td><input type="text" value="${table.player2}" data-table-index="${index}" data-field="player2"></td>
-                                    <td><input type="text" value="${table.deck1}" data-table-index="${index}" data-field="deck1"></td>
-                                    <td><input type="text" value="${table.deck2}" data-table-index="${index}" data-field="deck2"></td>
-                                    <td><button type="button" class="removeRowButton" data-table-index="${index}">Remove</button></td>
+                                    <td class="editable-field">${table.player1}</td>
+                                    <td class="editable-field">${table.player2}</td>
+                                    <td class="editable-field">${table.deck1}</td>
+                                    <td class="editable-field">${table.deck2}</td>
+                                    <td>
+                                        <button type="button" class="editRowButton" data-table-index="${index}">Edit</button>
+                                        <button type="button" class="saveRowButton" data-table-index="${index}" style="display:none;">Save</button>
+                                        <button type="button" class="removeRowButton" data-table-index="${index}">Remove</button>
+                                    </td>
                                 </tr>
                             `
                             dt.rows.add($(newRow)).draw()
                         });
-
                         hideLoadingModal();
                         showEditTablesModal();
                     },
@@ -328,11 +331,11 @@
                 let tableData = [];
 
                 $('#existingTablesTable tbody tr').each(function() {
-                    let tableIndex = $(this).find('input').data('table-index');
-                    let player1 = $(this).find('input[data-field="player1"]').val().trim().toLowerCase();
-                    let player2 = $(this).find('input[data-field="player2"]').val().trim().toLowerCase();
-                    let deck1 = $(this).find('input[data-field="deck1"]').val().trim().toLowerCase();
-                    let deck2 = $(this).find('input[data-field="deck2"]').val().trim().toLowerCase();
+                    let tableIndex = $(this).data('table-index');
+                    let player1 = $(this).find('td').eq(1).text().trim().toLowerCase();
+                    let player2 = $(this).find('td').eq(2).text().trim().toLowerCase();
+                    let deck1 = $(this).find('td').eq(3).text().trim().toLowerCase();
+                    let deck2 = $(this).find('td').eq(4).text().trim().toLowerCase();
 
                     tableData.push({
                         'player1': player1,
@@ -341,7 +344,6 @@
                         'deck2': deck2
                     });
                 });
-
                 showLoadingModal();
                 $.ajax({
                     url: '/update_tables',
@@ -368,6 +370,32 @@
             $(document).on('click', '.removeRowButton', function() {
                 let tableIndex = $(this).data('table-index');
                 $(this).closest('tr').remove();
+            });
+
+            $(document).on('click', '.editRowButton', function() {
+                let row = $(this).closest('tr');
+                let tableIndex = $(this).data('table-index');
+
+                row.find('.editable-field').each(function() {
+                    let field = $(this).text().trim();
+                    $(this).html(`<input type="text" value="${field}" data-table-index="${tableIndex}">`);
+                });
+
+                $(this).hide();
+                row.find('.saveRowButton').show();
+            });
+
+            $(document).on('click', '.saveRowButton', function() {
+                let row = $(this).closest('tr');
+                let tableIndex = $(this).data('table-index');
+
+                row.find('input').each(function() {
+                    let value = $(this).val().trim();
+                    $(this).parent().text(value);
+                });
+
+                $(this).hide();
+                row.find('.editRowButton').show();
             });
 
             $('#clearPlayerForm').on('click', function() {
